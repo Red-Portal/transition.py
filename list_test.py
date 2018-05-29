@@ -36,10 +36,10 @@ with Tester(Class) as test:
         test.assertEqual(len(prev.items) + 1, len(cur.items))
         test.assertTrue(all(x == y))
 
-    @test.trans(s1, s_item_added)
-    def additem(prev):
+    @test.trans(s1, s_item_added, lambda :random.randint(0, 100))
+    def additem(prev, arg):
         cur = Class(prev)
-        cur.items.append(random.randint(0, 100))
+        cur.items.append(arg)
         return cur
 
     @test.trans(s_item_added, s1)

@@ -33,26 +33,30 @@ class State(object):
 
 
 class Transition(object):
-    def __init__(self, tester, transitor, oldstate, newstate):
+    def __init__(self, tester, transit, oldstate, newstate, arg_gen):
         self.tester = tester
-        self.transitor = transitor
+        self.transit = transit
         self.oldstate = oldstate
         self.newstate = newstate
+        self.arg_generator = arg_gen
 
         oldstate.add_out(self)
         # newstate.add_in(self)
 
     def __call__(self, old):
-        return self.transitor(old)
+        if self.arg_generator != None:
+            return self.transit(old, self.arg_generator())
+        else:
+            return self.transit(old)
 
 
-class Entry(object):
-    def __init__(self, generator, entrystate):
-        self.generator = generator
-        self.state = entrystate
+class InitialState(object):
+    def __init__(self, initializer, initial_state):
+        self.initializer = initializer
+        self.state = initial_state
 
     def __call__(self):
-        return self.generator()
+        return self.initializer()
 
 class Tester(object):
     def __init__(self, cls):
@@ -65,9 +69,13 @@ class Tester(object):
             return State(tester=self, checker=f, description=description)
         return handler
 
-    def trans(self, oldstate, newstate):
+    def trans(self, oldstate, newstate, arg_gen=None):
         def handler(f):
-            return Transition(tester=self, transitor=f, oldstate=oldstate, newstate=newstate)
+            return Transition(tester=self,
+                              transit=f,
+                              oldstate=oldstate,
+                              newstate=newstate,
+                              arg_gen=arg_gen)
         return handler
 
     def __clear_results(self):
@@ -103,9 +111,9 @@ class Tester(object):
         while queue:
             obj, oldstate, visitCounts = queue.pop()
             curVisitCount = visitCounts.get(oldstate, 0)
-            print 'Running', oldstate
+            print('Running', oldstate)
             if curVisitCount >= MAX_VISIT_PER_STATE:
-                print 'Recursion limit exceeded: ...'
+                print('Recursion limit exceeded: ...')
             else:
                 for trans in oldstate.outtrans:
                     self.__clear_results()
@@ -115,7 +123,7 @@ class Tester(object):
                     if self.succeeded:
                         queue.append((newobj, trans.newstate, newVisitCounts))
                     else:
-                        print 'Test failed: ...'
+                        print('Test failed: ...')
 
     def graph(self):
         G = nx.DiGraph()
@@ -137,9 +145,11 @@ class Tester(object):
 
         return G
 
-    def entry(self, entrystate):
+    def entry(self, initial_state):
         def handler(f):
-            self.entries.append(Entry(generator=f, entrystate=entrystate))
+            self.entries.append(
+                InitialState(initializer=f,
+                             initial_state=initial_state))
 
         return handler
 
